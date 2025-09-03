@@ -284,6 +284,7 @@
         
         .guide-steps {
             margin-left: 20px;
+            margin-bottom: 15px;
         }
         
         .guide-steps li {
@@ -295,6 +296,23 @@
             padding: 2px 6px;
             border-radius: 4px;
             font-family: monospace;
+        }
+        
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-size: 14px;
+        }
+        
+        .config-files {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
         }
         
         @media (max-width: 600px) {
@@ -390,15 +408,59 @@
         </div>
         
         <div class="deployment-guide">
-            <h2>Deployment Guide</h2>
+            <h2>Fixing "Cannot GET /" Error on Render</h2>
+            <p>This error occurs when your server isn't properly configured to serve your main HTML file. Here's how to fix it:</p>
+            
             <ol class="guide-steps">
-                <li>Create a GitHub repository and upload all files</li>
-                <li>Create an account on <a href="https://render.com" target="_blank">Render.com</a></li>
-                <li>Connect your GitHub repository to Render</li>
-                <li>Deploy as a Static Site for frontend or Web Service for full stack</li>
-                <li>Set environment variables if needed</li>
+                <li><strong>Make sure your main HTML file is named <code>index.html</code></strong> - Render automatically looks for this file</li>
+                <li><strong>Create a proper <code>package.json</code> file</strong> if you're using Node.js</li>
+                <li><strong>For static sites</strong>, use Render's Static Site option instead of Web Service</li>
             </ol>
-            <p>For backend API, you'll need to deploy separately as a Web Service on Render.</p>
+            
+            <h3>Required Files for Deployment</h3>
+            
+            <div class="config-files">
+                <h4>package.json (for Node.js deployment)</h4>
+                <pre>{
+  "name": "yt-downloader",
+  "version": "1.0.0",
+  "description": "YouTube Video Downloader",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  },
+  "keywords": ["youtube", "downloader"],
+  "author": "Your Name",
+  "license": "MIT"
+}</pre>
+            </div>
+            
+            <div class="config-files">
+                <h4>server.js (basic Express server)</h4>
+                <pre>const express = require('express');
+const path = require('path');
+const app = express();
+const port = process.env.PORT || 3000;
+
+// Serve static files from the same directory
+app.use(express.static(__dirname));
+
+// Handle all routes by serving index.html
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});</pre>
+            </div>
+            
+            <p><strong>Deployment Tip:</strong> On Render, select "Static Site" if you only have frontend code, or "Web Service" if you have a Node.js backend.</p>
         </div>
         
         <div class="server-status">
