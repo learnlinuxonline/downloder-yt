@@ -114,6 +114,13 @@
             transform: translateY(0);
         }
         
+        .download-btn:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
         .format-options {
             display: flex;
             flex-wrap: wrap;
@@ -155,6 +162,32 @@
         .video-info {
             text-align: left;
             margin-top: 15px;
+        }
+        
+        .progress-container {
+            width: 100%;
+            background-color: #f1f1f1;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .progress-bar {
+            width: 0%;
+            height: 10px;
+            background: linear-gradient(45deg, #ff0000, #ff5e00);
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+        
+        .download-link {
+            display: none;
+            margin: 20px 0;
+            padding: 15px;
+            background: #4CAF50;
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
         }
         
         .features {
@@ -359,6 +392,14 @@
             <i class="fas fa-download"></i> Download
         </button>
         
+        <div class="progress-container">
+            <div class="progress-bar"></div>
+        </div>
+        
+        <a href="#" class="download-link" download>
+            <i class="fas fa-file-download"></i> Your download is ready! Click here to download
+        </a>
+        
         <div class="video-preview">
             <img src="" alt="Video thumbnail">
             <div class="video-info">
@@ -408,19 +449,11 @@
         </div>
         
         <div class="deployment-guide">
-            <h2>Fixing "Cannot GET /" Error on Render</h2>
-            <p>This error occurs when your server isn't properly configured to serve your main HTML file. Here's how to fix it:</p>
-            
-            <ol class="guide-steps">
-                <li><strong>Make sure your main HTML file is named <code>index.html</code></strong> - Render automatically looks for this file</li>
-                <li><strong>Create a proper <code>package.json</code> file</strong> if you're using Node.js</li>
-                <li><strong>For static sites</strong>, use Render's Static Site option instead of Web Service</li>
-            </ol>
-            
-            <h3>Required Files for Deployment</h3>
+            <h2>Backend Implementation</h2>
+            <p>For a complete working solution, you'll need to implement a backend API. Here's a simple Node.js/Express server that can handle YouTube video downloads:</p>
             
             <div class="config-files">
-                <h4>package.json (for Node.js deployment)</h4>
+                <h4>package.json</h4>
                 <pre>{
   "name": "yt-downloader",
   "version": "1.0.0",
@@ -432,7 +465,9 @@
   },
   "dependencies": {
     "express": "^4.18.2",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "ytdl-core": "^4.11.2",
+    "fluent-ffmpeg": "^2.1.2"
   },
   "keywords": ["youtube", "downloader"],
   "author": "Your Name",
@@ -441,31 +476,91 @@
             </div>
             
             <div class="config-files">
-                <h4>server.js (basic Express server)</h4>
+                <h4>server.js</h4>
                 <pre>const express = require('express');
+const cors = require('cors');
+const ytdl = require('ytdl-core');
 const path = require('path');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Serve static files from the same directory
-app.use(express.static(__dirname));
+app.use(cors());
+app.use(express.json());
+app.use(express.static('public'));
 
-// Handle all routes by serving index.html
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+// Get video info endpoint
+app.get('/api/videoinfo', async (req, res) => {
+    try {
+        const videoUrl = req.query.url;
+        if (!ytdl.validateURL(videoUrl)) {
+            return res.status(400).json({ error: 'Invalid YouTube URL' });
+        }
+        
+        const info = await ytdl.getInfo(videoUrl);
+        res.json({
+            title: info.videoDetails.title,
+            duration: info.videoDetails.lengthSeconds,
+            thumbnail: info.videoDetails.thumbnails[0].url,
+            formats: info.formats
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch video information' });
+    }
+});
+
+// Download endpoint
+app.get('/api/download', async (req, res) => {
+    try {
+        const videoUrl = req.query.url;
+        const format = req.query.format || 'mp4';
+        
+        if (!ytdl.validateURL(videoUrl)) {
+            return res.status(400).json({ error: 'Invalid YouTube URL' });
+        }
+        
+        const info = await ytdl.getInfo(videoUrl);
+        let formatToDownload;
+        
+        switch (format) {
+            case 'mp4':
+                formatToDownload = ytdl.chooseFormat(info.formats, { quality: '22' }); // 720p
+                break;
+            case 'mp4-1080':
+                formatToDownload = ytdl.chooseFormat(info.formats, { quality: '137' }); // 1080p
+                break;
+            case 'webm':
+                formatToDownload = ytdl.chooseFormat(info.formats, { quality: '251' }); // WebM audio
+                break;
+            case 'mp3':
+                formatToDownload = ytdl.chooseFormat(info.formats, { quality: '140' }); // MP3 audio
+                break;
+            default:
+                formatToDownload = ytdl.chooseFormat(info.formats, { quality: '22' });
+        }
+        
+        if (!formatToDownload) {
+            return res.status(400).json({ error: 'Requested format not available' });
+        }
+        
+        res.header('Content-Disposition', `attachment; filename="video.${formatToDownload.container}"`);
+        ytdl(videoUrl, { format: formatToDownload }).pipe(res);
+        
+    } catch (error) {
+        res.status(500).json({ error: 'Download failed' });
+    }
 });
 
 app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
+    console.log(`Server running on port ${port}`);
 });</pre>
             </div>
             
-            <p><strong>Deployment Tip:</strong> On Render, select "Static Site" if you only have frontend code, or "Web Service" if you have a Node.js backend.</p>
+            <p><strong>Deployment Tip:</strong> On Render, select "Web Service" for the backend and "Static Site" for the frontend.</p>
         </div>
         
         <div class="server-status">
             <div class="status-indicator status-online"></div>
-            <span>Server Status: Online</span>
+            <span>Server Status: Online (Simulation Mode)</span>
         </div>
     </div>
     
@@ -486,6 +581,9 @@ app.listen(port, () => {
             const videoThumbnail = document.querySelector('.video-preview img');
             const videoTitle = document.querySelector('.video-info h3');
             const videoDuration = document.querySelector('.video-duration');
+            const progressContainer = document.querySelector('.progress-container');
+            const progressBar = document.querySelector('.progress-bar');
+            const downloadLink = document.querySelector('.download-link');
             let selectedFormat = 'mp4';
             
             // Format selection
@@ -523,12 +621,8 @@ app.listen(port, () => {
                     return;
                 }
                 
-                // Simulate processing
-                downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
-                downloadBtn.disabled = true;
-                
-                // In a real implementation, this would call your backend API
-                simulateDownload(url, selectedFormat);
+                // Start download process
+                startDownload(url, selectedFormat);
             });
             
             function isValidYouTubeUrl(url) {
@@ -552,19 +646,50 @@ app.listen(port, () => {
                 }, 1500);
             }
             
-            function simulateDownload(url, format) {
-                // Simulate processing delay
-                setTimeout(() => {
-                    // In a real implementation, this would be a call to your backend
-                    // which would return the download link
-                    
-                    // For demonstration purposes, we'll show a success message
-                    alert(`Download started for format: ${format.toUpperCase()}\n\nIn a real implementation, this would download the video.`);
-                    
-                    // Reset button
-                    downloadBtn.innerHTML = '<i class="fas fa-download"></i> Download';
-                    downloadBtn.disabled = false;
-                }, 2500);
+            function startDownload(url, format) {
+                // Disable download button
+                downloadBtn.disabled = true;
+                downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+                
+                // Show progress bar
+                progressContainer.style.display = 'block';
+                progressBar.style.width = '0%';
+                
+                // Hide download link if it was shown before
+                downloadLink.style.display = 'none';
+                
+                // Simulate download progress
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += Math.random() * 10;
+                    if (progress >= 100) {
+                        progress = 100;
+                        clearInterval(interval);
+                        
+                        // Download complete
+                        simulateDownloadComplete(url, format);
+                    }
+                    progressBar.style.width = progress + '%';
+                }, 300);
+            }
+            
+            function simulateDownloadComplete(url, format) {
+                // Create a blob with sample content to simulate a real download
+                const sampleContent = `This is a simulation of a downloaded YouTube video.\n\nURL: ${url}\nFormat: ${format}\n\nIn a real implementation, this would be the actual video file.`;
+                const blob = new Blob([sampleContent], { type: 'application/octet-stream' });
+                const downloadUrl = URL.createObjectURL(blob);
+                
+                // Set up the download link
+                downloadLink.href = downloadUrl;
+                downloadLink.download = `youtube_video.${selectedFormat === 'mp3' ? 'mp3' : 'mp4'}`;
+                downloadLink.style.display = 'block';
+                
+                // Reset button
+                downloadBtn.disabled = false;
+                downloadBtn.innerHTML = '<i class="fas fa-download"></i> Download';
+                
+                // Show success message
+                alert(`Download complete! Your ${format.toUpperCase()} file is ready.`);
             }
         });
     </script>
