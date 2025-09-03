@@ -190,6 +190,17 @@
             text-decoration: none;
         }
         
+        .player-container {
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .player-container video {
+            width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
         .features {
             display: flex;
             flex-wrap: wrap;
@@ -400,6 +411,12 @@
             <i class="fas fa-file-download"></i> Your download is ready! Click here to download
         </a>
         
+        <div class="player-container">
+            <video controls>
+                Your browser does not support the video tag.
+            </video>
+        </div>
+        
         <div class="video-preview">
             <img src="" alt="Video thumbnail">
             <div class="video-info">
@@ -584,6 +601,8 @@ app.listen(port, () => {
             const progressContainer = document.querySelector('.progress-container');
             const progressBar = document.querySelector('.progress-bar');
             const downloadLink = document.querySelector('.download-link');
+            const playerContainer = document.querySelector('.player-container');
+            const videoPlayer = document.querySelector('.player-container video');
             let selectedFormat = 'mp4';
             
             // Format selection
@@ -657,6 +676,7 @@ app.listen(port, () => {
                 
                 // Hide download link if it was shown before
                 downloadLink.style.display = 'none';
+                playerContainer.style.display = 'none';
                 
                 // Simulate download progress
                 let progress = 0;
@@ -674,15 +694,32 @@ app.listen(port, () => {
             }
             
             function simulateDownloadComplete(url, format) {
-                // Create a blob with sample content to simulate a real download
-                const sampleContent = `This is a simulation of a downloaded YouTube video.\n\nURL: ${url}\nFormat: ${format}\n\nIn a real implementation, this would be the actual video file.`;
-                const blob = new Blob([sampleContent], { type: 'application/octet-stream' });
-                const downloadUrl = URL.createObjectURL(blob);
-                
-                // Set up the download link
-                downloadLink.href = downloadUrl;
-                downloadLink.download = `youtube_video.${selectedFormat === 'mp3' ? 'mp3' : 'mp4'}`;
-                downloadLink.style.display = 'block';
+                // Create a sample video blob for demonstration
+                // In a real implementation, this would be the actual video file from the backend
+                if (format === 'mp3') {
+                    // For audio files, we can't easily create a sample, so we'll use a download link
+                    const sampleContent = `This is a simulation of a downloaded YouTube audio.\n\nURL: ${url}\nFormat: ${format}\n\nIn a real implementation, this would be the actual audio file.`;
+                    const blob = new Blob([sampleContent], { type: 'application/octet-stream' });
+                    const downloadUrl = URL.createObjectURL(blob);
+                    
+                    // Set up the download link
+                    downloadLink.href = downloadUrl;
+                    downloadLink.download = `youtube_audio.mp3`;
+                    downloadLink.style.display = 'block';
+                } else {
+                    // For video files, we'll use a sample video that can be played
+                    // Using a sample video from a public domain source
+                    const sampleVideoUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
+                    
+                    // Show the video player
+                    videoPlayer.src = sampleVideoUrl;
+                    playerContainer.style.display = 'block';
+                    
+                    // Also provide a download link
+                    downloadLink.href = sampleVideoUrl;
+                    downloadLink.download = `youtube_video.${format === 'webm' ? 'webm' : 'mp4'}`;
+                    downloadLink.style.display = 'block';
+                }
                 
                 // Reset button
                 downloadBtn.disabled = false;
